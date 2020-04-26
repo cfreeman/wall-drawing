@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Line Drawing</title>
+    <style>body {margin: 0;} video {display:none;}
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script>
+      "use strict";
+
+      function colorToS(cColor) {
+        return "rgb("+cColor[0]+","+cColor[1]+","+cColor[2]+")";
+      }
+
+      function rand(iStart, iEnd) {
+        return Math.floor((Math.random() * iEnd) + iStart) | 0;
+      }
+
+
+      function chance(iProbability) {
+        if (rand(0, 100) >= (100 - iProbability)) {
+          return true;
+        }
+
+        return false;
+      }
+
+      function drawCross(ctx, cColor, iXpos, iYpos) {
+        var iRandWidth = 10;
+        var iRandCurve = 14;
+        var iTLx = iXpos - 10;
+        var iTLy = iYpos - 10;
+        var iBRx = iXpos + 10;
+        var iBRy = iYpos + 10;
+
+        ctx.beginPath();
+        ctx.strokeStyle = colorToS(cColor);
+        ctx.lineWidth = 4;
+        ctx.moveTo(iTLx + rand(-iRandWidth, iRandWidth),
+                   iTLy + rand(-iRandWidth, iRandWidth));
+        ctx.quadraticCurveTo(iBRx + rand(-iRandCurve, iRandCurve),
+                             iBRy + rand(-iRandCurve, iRandCurve),
+                             iBRx + rand(-iRandWidth, iRandWidth),
+                             iBRy + rand(-iRandWidth, iRandWidth));
+
+        ctx.moveTo(iBRx + rand(-iRandWidth, iRandWidth),
+                   iTLy + rand(-iRandWidth, iRandWidth));
+        ctx.quadraticCurveTo(iTLx + rand(-iRandCurve, iRandCurve),
+                             iBRy + rand(-iRandCurve, iRandCurve),
+                             iTLx + rand(-iRandWidth, iRandWidth),
+                             iBRy + rand(-iRandWidth, iRandWidth));
+        ctx.stroke();
+        ctx.closePath();
+      }
+
+      (function() {
+        var cCross = [186, 8, 16];
+        var eCanvas = document.getElementById('canvas');
+        eCanvas.width = window.innerWidth;
+        eCanvas.height = window.innerHeight - 4;
+
+        var ctx = eCanvas.getContext('2d');
+
+        ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
+        for(var j = 20; j < 400; j = j+100) {
+          for(var i = 20; i < 500; i = i+100) {
+            drawCross(ctx, cCross, i, j);
+          }
+        }
+      })();
+
+    </script>
+  </body>
+</html>
