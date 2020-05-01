@@ -11,6 +11,18 @@
     <script>
       "use strict";
 
+      function intersect(imP1, imP2, imP3, imP4) {
+        var iT = (((imP1[0] - imP3[0])*(imP3[1] - imP4[1])) -
+                 ((imP1[1] - imP3[1])*(imP3[0] - imP4[0])))
+                 /
+                 (((imP1[0] - imP2[0])*(imP3[1] - imP4[1])) -
+                 ((imP1[1] - imP2[1])*(imP3[0] - imP4[0])));
+
+        return [Math.round(imP1[0] + iT*(imP2[0] - imP1[0])),
+                Math.round(imP1[1] + iT*(imP2[1] - imP1[1]))];
+
+      }
+
       function colorToS(cColor) {
         return "rgb("+cColor[0]+","+cColor[1]+","+cColor[2]+")";
       }
@@ -21,43 +33,97 @@
 
 
       function chance(iProbability) {
-        if (rand(0, 100) >= (100 - iProbability)) {
+        if (rand(0, 1000) >= (1000 - iProbability)) {
           return true;
         }
 
         return false;
       }
 
+      function drawLine(ctx, cLine, cCross, iWidth) {
+        ctx.beginPath();
+        ctx.strokeStyle = colorToS(cLine);
+        ctx.lineWidth = 1;
+
+        var iXpos = 0;
+        var iYpos = 350;
+        var immLine = [];
+
+        ctx.moveTo(iXpos, iYpos);
+
+        while(iXpos < iWidth) {
+          iXpos = iXpos + rand(2, 5);
+          iYpos = iYpos + rand(-2, 5);
+          ctx.lineTo(iXpos, iYpos);
+          immLine.push([iXpos, iYpos]);
+          //console.log("[" + iXpos + "," + iYpos + "]");
+
+          // 0.02% chance of accidentially lifting your pencil.
+          if(chance(2)) {
+            break;
+          }
+        }
+
+        ctx.stroke();
+        ctx.closePath();
+
+        immLine.forEach(print);
+        function print(item, index) {
+          console.log("[" + item[0] + "," + item[1] + "]");
+        }
+
+        // We didn't make it to the end. Draw a cross.
+        if (iXpos < iWidth) {
+          drawCross(ctx, cCross, iXpos, iYpos);
+        }
+
+        return immLine;
+      }
+
       function drawCross(ctx, cColor, iXpos, iYpos) {
-        var iRandWidth = 10;
-        var iRandCurve = 14;
+        var iRandWidth = 7;
+        var iRandCurve = 7;
         var iTLx = iXpos - 10;
         var iTLy = iYpos - 10;
         var iBRx = iXpos + 10;
         var iBRy = iYpos + 10;
 
+        var imTL = [iTLx + rand(-iRandWidth, iRandWidth),
+                    iTLy + rand(-iRandWidth, iRandWidth)];
+        var imBR = [iBRx + rand(-iRandWidth, iRandWidth),
+                    iBRy + rand(-iRandWidth, iRandWidth)];
+        var imTR = [iBRx + rand(-iRandWidth, iRandWidth),
+                    iTLy + rand(-iRandWidth, iRandWidth)];
+        var imBL = [iTLx + rand(-iRandWidth, iRandWidth),
+                    iBRy + rand(-iRandWidth, iRandWidth)];
+
+        var imIN = intersect(imTL, imBR, imTR, imBL);
+
+        var imOF = [iXpos - imIN[0], iYpos - imIN[1]];
+        console.log("DESIRED POS: [" + iXpos + "," + iYpos + "]");
+        console.log("INTERSECT: [" + imIN[0] + "," + imIN[1] + "]");
+        console.log("OFFSET: [" + imOF[0] + "," + imOF[1] + "]");
+
         ctx.beginPath();
         ctx.strokeStyle = colorToS(cColor);
         ctx.lineWidth = 4;
-        ctx.moveTo(iTLx + rand(-iRandWidth, iRandWidth),
-                   iTLy + rand(-iRandWidth, iRandWidth));
+
+        ctx.moveTo(imTL[0] + imOF[0], imTL[1] + imOF[1]);
         ctx.quadraticCurveTo(iBRx + rand(-iRandCurve, iRandCurve),
                              iBRy + rand(-iRandCurve, iRandCurve),
-                             iBRx + rand(-iRandWidth, iRandWidth),
-                             iBRy + rand(-iRandWidth, iRandWidth));
+                             imBR[0] + imOF[0], imBR[1] + imOF[1]);
 
-        ctx.moveTo(iBRx + rand(-iRandWidth, iRandWidth),
-                   iTLy + rand(-iRandWidth, iRandWidth));
+        ctx.moveTo(imTR[0] + imOF[0], imTR[1] + imOF[1]);
         ctx.quadraticCurveTo(iTLx + rand(-iRandCurve, iRandCurve),
                              iBRy + rand(-iRandCurve, iRandCurve),
-                             iTLx + rand(-iRandWidth, iRandWidth),
-                             iBRy + rand(-iRandWidth, iRandWidth));
+                             imBL[0] + imOF[0], imBL[1] + imOF[1]);
         ctx.stroke();
         ctx.closePath();
       }
 
       (function() {
         var cCross = [186, 8, 16];
+        var cLine = [0, 0, 0];
         var eCanvas = document.getElementById('canvas');
         eCanvas.width = window.innerWidth;
         eCanvas.height = window.innerHeight - 4;
@@ -65,11 +131,16 @@
         var ctx = eCanvas.getContext('2d');
 
         ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
-        for(var j = 20; j < 400; j = j+100) {
-          for(var i = 20; i < 500; i = i+100) {
-            drawCross(ctx, cCross, i, j);
-          }
-        }
+
+        drawLine(ctx, cLine, cCross, eCanvas.width);
+
+        // 27 / 61 ~ 40% line failure.
+
+        // for(var j = 20; j < 400; j = j+100) {
+        //   for(var i = 20; i < 500; i = i+100) {
+        //
+        //   }
+        // }
       })();
 
     </script>
