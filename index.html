@@ -33,51 +33,89 @@
 
 
       function chance(iProbability) {
-        if (rand(0, 1000) >= (1000 - iProbability)) {
+        if (rand(0, 100000) >= (100000 - iProbability)) {
           return true;
         }
 
         return false;
       }
 
-      function drawLine(ctx, cLine, cCross, iWidth) {
+      function getNearestYValue(imMap, iX) {
+        var iY = 0;
+
+        for (let key of imMap.keys()) {
+          iY = imMap.get(key)
+          if (iX <= key) {
+            return iY;
+          }
+        }
+
+        return iY;
+      }
+
+      function drawLine(ctx, imPrev, iWidth, cLine, cCross) {
+
+        // TODO: Remove debug information.
+        console.log("**** DRAW Line ****");
+        for (let key of imPrev.keys()) {
+          console.log("imPrev[" + key + "]=" + imPrev.get(key) + "");
+        }
+
+        // Define the style of the line.
         ctx.beginPath();
-        ctx.strokeStyle = colorToS(cLine);
+        ctx.strokeStyle = colorToS(cLine);  // TODO: vary pressure / colour along line.
         ctx.lineWidth = 1;
 
-        var iXpos = 0;
-        var iYpos = 350;
-        var immLine = [];
+        var iYdelta = rand(7, 15);
+        console.log("iYdelta: " + iYdelta);
 
+        var iXpos = 0;
+        var iYpos = getNearestYValue(imPrev, 0) + iYdelta;
+        console.log("iYStart: " + iYpos);
+
+        var imLine = new Map();
+
+        // Move to the start of the line.
         ctx.moveTo(iXpos, iYpos);
 
         while(iXpos < iWidth) {
+          // TODO: Use probability skew the rand input and make it harder and harder to drift away from the line above.
           iXpos = iXpos + rand(2, 5);
           iYpos = iYpos + rand(-2, 5);
           ctx.lineTo(iXpos, iYpos);
-          immLine.push([iXpos, iYpos]);
-          //console.log("[" + iXpos + "," + iYpos + "]");
+          imLine.set(iXpos, iYpos);
 
-          // 0.02% chance of accidentially lifting your pencil.
-          if(chance(2)) {
+          // If we touch the line above.
+          var iYprev = getNearestYValue(imPrev, iXpos);
+          console.log("getNearestYValue(" + iXpos + ")=" + iYprev);
+          console.log("cross="+ (iYpos - iYprev <= 2));
+          if (iYpos - iYprev <= 3) {
+            break;
+          }
+
+          // There is 0.0001% chance of accidentially lifting the pencil and
+          // finishing the line early.
+          if(chance(1)) {
             break;
           }
         }
 
+        // Render the line and close the path.
         ctx.stroke();
         ctx.closePath();
 
-        immLine.forEach(print);
-        function print(item, index) {
-          console.log("[" + item[0] + "," + item[1] + "]");
-        }
-
-        // We didn't make it to the end. Draw a cross.
+        // If we didn't make it to the end. Draw a cross.
         if (iXpos < iWidth) {
           drawCross(ctx, cCross, iXpos, iYpos);
+          // TODO: Add in everything from iXPos to iWidth to the end of imLine.
         }
 
-        return immLine;
+        // TODO: Remove debug information.
+        // for (let key of imPrev.keys()) {
+        //   console.log("imPrev[" + key + "]=" + imPrev.get(key) + "");
+        // }
+
+        return imLine;
       }
 
       function drawCross(ctx, cColor, iXpos, iYpos) {
@@ -132,7 +170,14 @@
 
         ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
 
-        drawLine(ctx, cLine, cCross, eCanvas.width);
+        var imStart = new Map([[eCanvas.width, 5]]);
+
+        var imLine = drawLine(ctx, imStart, eCanvas.width, cLine, cCross);
+        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
+        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
+        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
+        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
+        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
 
         // 27 / 61 ~ 40% line failure.
 
