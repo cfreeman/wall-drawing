@@ -23,17 +23,16 @@
 
       }
 
-      function colorToS(cColor) {
-        return "rgb("+cColor[0]+","+cColor[1]+","+cColor[2]+")";
+      function frand(fStart, fEnd) {
+        return (Math.random() * fEnd) + fStart;
       }
 
       function rand(iStart, iEnd) {
         return Math.floor((Math.random() * iEnd) + iStart) | 0;
       }
 
-
       function chance(iProbability) {
-        if (rand(0, 100000) >= (100000 - iProbability)) {
+        if (rand(0, 10000000) >= (10000000 - iProbability)) {
           return true;
         }
 
@@ -66,25 +65,26 @@
         return imRes;
       }
 
-      function drawLine(ctx, imPrev, iWidth, cLine, cCross) {
+      function drawLine(ctx, imPrev, iWidth, cCross) {
 
         // TODO: Remove debug information.
         console.log("**** DRAW Line ****");
-        for (let key of imPrev.keys()) {
-          console.log("imPrev[" + key + "]=" + imPrev.get(key) + "");
-        }
 
         // Define the style of the line.
-        ctx.beginPath();
-        ctx.strokeStyle = colorToS(cLine);  // TODO: vary pressure / colour along line.
-        ctx.lineWidth = 1;
+        // TODO: Vary color of line along line??
+        var iGrey = rand(0, 100);
+        var sRGB = "rgb("+iGrey+","+iGrey+","+iGrey+")";
 
-        var iYgap = rand(7, 15);
-        //console.log("iYdelta: " + iYdelta);
+        ctx.beginPath();
+        ctx.strokeStyle = sRGB
+        ctx.lineWidth = 1; // TODO: Vary thickness of line. 2 for darker colours.
+                           // 1 for thinner.
+
+        var iYgap = rand(4, 7); // TODO: Maybe write new rand, where numbers closest
+                                // to middle are more likely than the fringes?
 
         var iXpos = 0;
         var iYpos = getNearestYValue(imPrev, 0) + iYgap;
-        console.log("iYStart: " + iYpos);
 
         var imLine = new Map();
 
@@ -93,8 +93,7 @@
 
         while(iXpos < iWidth) {
           var iYdelta = (iYpos - getNearestYValue(imPrev, iXpos));
-          var iYoversize = Math.max(1.0, (iYdelta / iYgap));
-          // console.log("iYgap="+ iYgap +", iYdelta =" + iYdelta, ", iYoversize=" + iYoversize);
+          var iYoversize = Math.max(1.0, (iYdelta / (iYgap * 1.7)));
 
           iXpos = iXpos + rand(2, 5);
           iYpos = iYpos + rand(-2, 5 / iYoversize);
@@ -105,14 +104,16 @@
 
           // If we touch the line above, our turn is over.
           var iYprev = getNearestYValue(imPrev, iXpos);
-          //console.log("getNearestYValue(" + iXpos + ")=" + iYprev);
-          //console.log("cross="+ (iYpos - iYprev <= 2));
           if (iYpos - iYprev <= 3) {
             break;
           }
 
           // If we lift our pencil, our turn is over. There is 0.0001% chance of
           // accidentially lifting the pencil and finishing the line early.
+
+          // TODO: Fix pencil lift distribtion. It's all skewed to the left of the
+          // drawing. Work out the chance of a line lift before drawing line.
+          // Then work out a random noramlised spot along the line to lift.
           if(chance(1)) {
             break;
           }
@@ -137,12 +138,12 @@
       }
 
       function drawCross(ctx, cColor, iXpos, iYpos) {
-        var iRandWidth = 7;
-        var iRandCurve = 7;
-        var iTLx = iXpos - 10;
-        var iTLy = iYpos - 10;
-        var iBRx = iXpos + 10;
-        var iBRy = iYpos + 10;
+        var iRandWidth = 5;
+        var iRandCurve = 5;
+        var iTLx = iXpos - 8;
+        var iTLy = iYpos - 8;
+        var iBRx = iXpos + 8;
+        var iBRy = iYpos + 8;
 
         var imTL = [iTLx + rand(-iRandWidth, iRandWidth),
                     iTLy + rand(-iRandWidth, iRandWidth)];
@@ -161,8 +162,10 @@
         console.log("OFFSET: [" + imOF[0] + "," + imOF[1] + "]");
 
         ctx.beginPath();
-        ctx.strokeStyle = colorToS(cColor);
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(" + 186 + "," + rand(8, 28) + "," + rand(16, 56) + "," + 0.8 + ")";
+
+        //colorToS(cColor); //TODO: Add color variation to cross.
+        ctx.lineWidth = 3;
 
         ctx.moveTo(imTL[0] + imOF[0], imTL[1] + imOF[1]);
         ctx.quadraticCurveTo(iBRx + rand(-iRandCurve, iRandCurve),
@@ -178,8 +181,7 @@
       }
 
       (function() {
-        var cCross = [186, 8, 16];
-        var cLine = [0, 0, 0];
+        var cCross = [186, 8, 16, 0.8];
         var eCanvas = document.getElementById('canvas');
         eCanvas.width = window.innerWidth;
         eCanvas.height = window.innerHeight - 4;
@@ -190,20 +192,12 @@
 
         var imStart = new Map([[eCanvas.width, 5]]);
 
-        var imLine = drawLine(ctx, imStart, eCanvas.width, cLine, cCross);
-        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
-        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
-        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
-        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
-        imLine = drawLine(ctx, imLine, eCanvas.width, cLine, cCross);
+        var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
+        for (var iIdx = 0; iIdx < 70; iIdx = iIdx + 1) {
+          imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
+        }
 
-        // 27 / 61 ~ 40% line failure.
-
-        // for(var j = 20; j < 400; j = j+100) {
-        //   for(var i = 20; i < 500; i = i+100) {
-        //
-        //   }
-        // }
+        // Tom Sachs studio numbers: (27 / 61) ~ 40% line failure.
       })();
 
     </script>
