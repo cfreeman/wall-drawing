@@ -79,11 +79,11 @@
         ctx.strokeStyle = colorToS(cLine);  // TODO: vary pressure / colour along line.
         ctx.lineWidth = 1;
 
-        var iYdelta = rand(7, 15);
-        console.log("iYdelta: " + iYdelta);
+        var iYgap = rand(7, 15);
+        //console.log("iYdelta: " + iYdelta);
 
         var iXpos = 0;
-        var iYpos = getNearestYValue(imPrev, 0) + iYdelta;
+        var iYpos = getNearestYValue(imPrev, 0) + iYgap;
         console.log("iYStart: " + iYpos);
 
         var imLine = new Map();
@@ -92,22 +92,27 @@
         ctx.moveTo(iXpos, iYpos);
 
         while(iXpos < iWidth) {
-          // TODO: Use probability skew the rand input and make it harder and harder to drift away from the line above.
+          var iYdelta = (iYpos - getNearestYValue(imPrev, iXpos));
+          var iYoversize = Math.max(1.0, (iYdelta / iYgap));
+          // console.log("iYgap="+ iYgap +", iYdelta =" + iYdelta, ", iYoversize=" + iYoversize);
+
           iXpos = iXpos + rand(2, 5);
-          iYpos = iYpos + rand(-2, 5);
+          iYpos = iYpos + rand(-2, 5 / iYoversize);
+
+          // Add the next segment to the line.
           ctx.lineTo(iXpos, iYpos);
           imLine.set(iXpos, iYpos);
 
-          // If we touch the line above.
+          // If we touch the line above, our turn is over.
           var iYprev = getNearestYValue(imPrev, iXpos);
-          console.log("getNearestYValue(" + iXpos + ")=" + iYprev);
-          console.log("cross="+ (iYpos - iYprev <= 2));
+          //console.log("getNearestYValue(" + iXpos + ")=" + iYprev);
+          //console.log("cross="+ (iYpos - iYprev <= 2));
           if (iYpos - iYprev <= 3) {
             break;
           }
 
-          // There is 0.0001% chance of accidentially lifting the pencil and
-          // finishing the line early.
+          // If we lift our pencil, our turn is over. There is 0.0001% chance of
+          // accidentially lifting the pencil and finishing the line early.
           if(chance(1)) {
             break;
           }
