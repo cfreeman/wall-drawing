@@ -53,6 +53,19 @@
         return iY;
       }
 
+      function appendMapTail(imDst, imSrc, iX) {
+        var imRes = new Map(imDst);
+
+        for (let key of imSrc.keys()) {
+          if (key > iX) {
+            imRes.set(key, imSrc.get(key));
+          }
+
+        }
+
+        return imRes;
+      }
+
       function drawLine(ctx, imPrev, iWidth, cLine, cCross) {
 
         // TODO: Remove debug information.
@@ -107,7 +120,7 @@
         // If we didn't make it to the end. Draw a cross.
         if (iXpos < iWidth) {
           drawCross(ctx, cCross, iXpos, iYpos);
-          // TODO: Add in everything from iXPos to iWidth to the end of imLine.
+          imLine = appendMapTail(imLine, imPrev, iXpos);
         }
 
         // TODO: Remove debug information.
