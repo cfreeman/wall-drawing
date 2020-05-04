@@ -32,7 +32,7 @@
       }
 
       function chance(iProbability) {
-        if (rand(0, 10000000) >= (10000000 - iProbability)) {
+        if (rand(0, 100) >= (100 - iProbability)) {
           return true;
         }
 
@@ -69,6 +69,7 @@
 
         // TODO: Remove debug information.
         console.log("**** DRAW Line ****");
+        //console.log(random.binomial(n=10, p=0.5, size=1000));
 
         // Define the style of the line.
         // TODO: Vary color of line along line??
@@ -77,16 +78,20 @@
 
         ctx.beginPath();
         ctx.strokeStyle = sRGB
-        ctx.lineWidth = 1; // TODO: Vary thickness of line. 2 for darker colours.
-                           // 1 for thinner.
+        ctx.lineWidth = (iGrey < 20) ? 2 : 1;
 
         var iYgap = rand(4, 7); // TODO: Maybe write new rand, where numbers closest
                                 // to middle are more likely than the fringes?
 
         var iXpos = 0;
         var iYpos = getNearestYValue(imPrev, 0) + iYgap;
-
         var imLine = new Map();
+
+        var fXfinish = 1.0;
+        if (chance(39)) {
+          fXfinish = frand(0.0, 1.0);
+          //console.log("LIFT: " + fXfinish + ","  + (iWidth * fXfinish));
+        }
 
         // Move to the start of the line.
         ctx.moveTo(iXpos, iYpos);
@@ -103,18 +108,15 @@
           imLine.set(iXpos, iYpos);
 
           // If we touch the line above, our turn is over.
-          var iYprev = getNearestYValue(imPrev, iXpos);
-          if (iYpos - iYprev <= 3) {
-            break;
-          }
+          // var iYprev = getNearestYValue(imPrev, iXpos);
+          // if (iYpos - iYprev <= 3) {
+          //   console.log("CROSS: " + iXpos, iYpos);
+          //   break;
+          // }
 
-          // If we lift our pencil, our turn is over. There is 0.0001% chance of
+          // If we lift our pencil, our turn is over. There is 40% chance of
           // accidentially lifting the pencil and finishing the line early.
-
-          // TODO: Fix pencil lift distribtion. It's all skewed to the left of the
-          // drawing. Work out the chance of a line lift before drawing line.
-          // Then work out a random noramlised spot along the line to lift.
-          if(chance(1)) {
+          if (fXfinish < 1.0 && (iXpos >= iWidth * fXfinish)) {
             break;
           }
         }
@@ -157,9 +159,9 @@
         var imIN = intersect(imTL, imBR, imTR, imBL);
 
         var imOF = [iXpos - imIN[0], iYpos - imIN[1]];
-        console.log("DESIRED POS: [" + iXpos + "," + iYpos + "]");
-        console.log("INTERSECT: [" + imIN[0] + "," + imIN[1] + "]");
-        console.log("OFFSET: [" + imOF[0] + "," + imOF[1] + "]");
+        //console.log("DESIRED POS: [" + iXpos + "," + iYpos + "]");
+        //console.log("INTERSECT: [" + imIN[0] + "," + imIN[1] + "]");
+        //console.log("OFFSET: [" + imOF[0] + "," + imOF[1] + "]");
 
         ctx.beginPath();
         ctx.strokeStyle = "rgba(" + 186 + "," + rand(8, 28) + "," + rand(16, 56) + "," + 0.8 + ")";
