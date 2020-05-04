@@ -142,9 +142,10 @@
         ctx.strokeStyle = sRGB
         ctx.lineWidth = (iGrey < 20) ? 2 : 1;
 
-        var iYgap = rand(4, 12);
+        var iYgap = rand(6, 12);
         console.log("iYgap="+iYgap);
 
+        var iXprev = 0;
         var iXpos = 0;
         var iYpos = getNearestYValue(imPrev, 0) + iYgap;
         var imLine = new Map();
@@ -168,7 +169,7 @@
         ctx.moveTo(iXpos, iYpos);
 
         while(iXpos < iWidth) {
-          var iYprev = getNearestYValue(imPrev, iXpos);
+          var iYprev = getNearestYValue(imPrev, iXprev);
           var iYdelta = (iYpos - iYprev);
           var iYdeltaScale = Math.max(1.0, (iYdelta / iYgap));
 
@@ -186,7 +187,8 @@
           }
 
           // Add the next segment to the line.
-          ctx.lineTo(iXpos, iYpos);
+          //ctx.lineTo(iXpos, iYpos);
+          ctx.quadraticCurveTo(iXprev + (iXpos - iXprev), iYprev + (iYpos - iYprev), iXpos, iYpos);
           imLine.set(iXpos, iYpos);
 
           // We touched the line above. Our turn is over -- we are not checking the
@@ -201,6 +203,8 @@
             console.log("LIFT: " + iXpos + "," + iYpos);
             break;
           }
+
+          iXprev = iXpos;
         }
 
         // Render the line and close the path.
@@ -259,11 +263,12 @@
         ctx.closePath();
       }
 
+      // Main entry point.
       (function() {
         var cCross = [186, 8, 16, 0.8];
         var eCanvas = document.getElementById('canvas');
         eCanvas.width = window.innerWidth;
-        eCanvas.height = window.innerHeight - 4;
+        eCanvas.height = window.innerHeight-4;
 
         var ctx = eCanvas.getContext('2d');
 
@@ -275,6 +280,14 @@
         for (var iIdx = 0; iIdx < 60; iIdx = iIdx + 1) {
           imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
         }
+
+        var img = new Image();
+        img.onload = function() {
+            ctx.drawImage(img, eCanvas.width - 98, eCanvas.height - 44);
+        }
+        img.src = "https://reprage.com/images/icons4.png";
+        console.log(img)
+
 
         // Tom Sachs studio numbers: (27 / 61) ~ 40% line failure.
       })();
