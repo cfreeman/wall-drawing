@@ -11,6 +11,59 @@
     <script>
       "use strict";
 
+      function getNormalGenerator() {
+        return (function() {
+            var oldMu, oldSigma;
+            var x2, multiplier, genReady;
+
+            return function normal(mu, sigma) {
+
+                var x1, u1, u2, v1, v2, s;
+
+                if ('number' !== typeof mu) {
+                    throw new TypeError('nextNormal: mu must be number.');
+                }
+                if ('number' !== typeof sigma) {
+                    throw new TypeError('nextNormal: sigma must be number.');
+                }
+
+                if (mu !== oldMu || sigma !== oldSigma) {
+                    genReady = false;
+                    oldMu = mu;
+                    oldSigma = sigma;
+                }
+
+                if (genReady) {
+                    genReady = false;
+                    return (sigma * x2) + mu;
+                }
+
+                u1 = Math.random();
+                u2 = Math.random();
+
+
+                v1 = (2 * u1) - 1;
+                v2 = (2 * u2) - 1;
+
+                s = (v1 * v1) + (v2 * v2);
+
+                if (s >= 1) {
+                    return normal(mu, sigma);
+                }
+
+                multiplier = Math.sqrt(-2 * Math.log(s) / s);
+
+                x1 = v1 * multiplier;
+                x2 = v2 * multiplier;
+
+                genReady = true;
+
+                return (sigma * x1) + mu;
+
+            };
+        })();
+    };
+
       function intersect(imP1, imP2, imP3, imP4) {
         var iT = (((imP1[0] - imP3[0])*(imP3[1] - imP4[1])) -
                  ((imP1[1] - imP3[1])*(imP3[0] - imP4[0])))
@@ -21,6 +74,15 @@
         return [Math.round(imP1[0] + iT*(imP2[0] - imP1[0])),
                 Math.round(imP1[1] + iT*(imP2[1] - imP1[1]))];
 
+      }
+
+      function binomialRand(iStart, iEnd, fuGenerator) {
+        var fRand = (fuGenerator(0, 0.2) + 1.0) / 2.0;
+        //console.log("binomialRand="+fRand);
+        var iResult = (fRand * iEnd) + iStart | 0;
+        //console.log("iResult="+iResult);
+        iResult = Math.min(iResult, iEnd);
+        return Math.max(iResult, iStart);
       }
 
       function frand(fStart, fEnd) {
@@ -69,54 +131,74 @@
 
         // TODO: Remove debug information.
         console.log("**** DRAW Line ****");
-        //console.log(random.binomial(n=10, p=0.5, size=1000));
+
+        var fuNormal = getNormalGenerator();
 
         // Define the style of the line.
-        // TODO: Vary color of line along line??
-        var iGrey = rand(0, 100);
+        var iGrey = rand(0, 100); // TODO: Vary color of line along line.
         var sRGB = "rgb("+iGrey+","+iGrey+","+iGrey+")";
 
         ctx.beginPath();
         ctx.strokeStyle = sRGB
         ctx.lineWidth = (iGrey < 20) ? 2 : 1;
 
-        var iYgap = rand(4, 7); // TODO: Maybe write new rand, where numbers closest
-                                // to middle are more likely than the fringes?
+        var iYgap = rand(4, 12);
+        console.log("iYgap="+iYgap);
 
         var iXpos = 0;
         var iYpos = getNearestYValue(imPrev, 0) + iYgap;
         var imLine = new Map();
 
-        var fXfinish = 1.0;
-        if (chance(39)) {
-          fXfinish = frand(0.0, 1.0);
-          //console.log("LIFT: " + fXfinish + ","  + (iWidth * fXfinish));
+        // If we lift our pencil, our turn is over. There is 40% chance of
+        // accidentially lifting the pencil and finishing the line early.
+        var fXlift = 1.0;
+        if (chance(23)) {
+          fXlift = frand(0.0, 1.0);
+        }
+
+        // If we touch the line above, our turn is over. There is a 40% chance
+        // of accidentially touching the line above and finishing the line early.
+        var fXcross = 1.0;
+        if (fXlift > 0.99 & chance(40)) {
+          fXcross = frand(0.0, 1.0);
+          console.log("CROSS PERMITTED AFTER " + fXcross * iWidth);
         }
 
         // Move to the start of the line.
         ctx.moveTo(iXpos, iYpos);
 
         while(iXpos < iWidth) {
-          var iYdelta = (iYpos - getNearestYValue(imPrev, iXpos));
-          var iYoversize = Math.max(1.0, (iYdelta / (iYgap * 1.7)));
+          var iYprev = getNearestYValue(imPrev, iXpos);
+          var iYdelta = (iYpos - iYprev);
+          var iYdeltaScale = Math.max(1.0, (iYdelta / iYgap));
 
           iXpos = iXpos + rand(2, 5);
-          iYpos = iYpos + rand(-2, 5 / iYoversize);
+          iYpos = iYpos + rand(-2 * iYdeltaScale, 7 / iYdeltaScale) + binomialRand(0, 2, fuNormal);
+
+          // Enforce the crossing limits.
+          if((iXpos < iWidth * fXcross) && ((iYpos - iYprev) <= 3)) {
+            // Don't permit the lines from crossing before our randomly allocated
+            // slot.
+            iYpos = iYpos + 5;
+          } else if (iXpos > iWidth * fXcross) {
+            // We need to cross the line above. Tilt the scales in our favour.
+            iYpos = iYpos - 2;
+          }
 
           // Add the next segment to the line.
           ctx.lineTo(iXpos, iYpos);
           imLine.set(iXpos, iYpos);
 
-          // If we touch the line above, our turn is over.
-          // var iYprev = getNearestYValue(imPrev, iXpos);
-          // if (iYpos - iYprev <= 3) {
-          //   console.log("CROSS: " + iXpos, iYpos);
-          //   break;
-          // }
+          // We touched the line above. Our turn is over -- we are not checking the
+          // line above correctly.
+          if (iYpos - iYprev <= 3) {
+              console.log("CROSS: " + iXpos + "," + iYpos);
+              break;
+          }
 
-          // If we lift our pencil, our turn is over. There is 40% chance of
-          // accidentially lifting the pencil and finishing the line early.
-          if (fXfinish < 1.0 && (iXpos >= iWidth * fXfinish)) {
+          // We lifted the pencil. Our turn is over.
+          if (fXlift < 1.0 && (iXpos >= iWidth * fXlift)) {
+            console.log("LIFT: " + iXpos + "," + iYpos);
             break;
           }
         }
@@ -130,11 +212,6 @@
           drawCross(ctx, cCross, iXpos, iYpos);
           imLine = appendMapTail(imLine, imPrev, iXpos);
         }
-
-        // TODO: Remove debug information.
-        // for (let key of imPrev.keys()) {
-        //   console.log("imPrev[" + key + "]=" + imPrev.get(key) + "");
-        // }
 
         return imLine;
       }
@@ -192,10 +269,10 @@
 
         ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
 
-        var imStart = new Map([[eCanvas.width, 5]]);
+        var imStart = new Map([[eCanvas.width, 0]]);
 
         var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
-        for (var iIdx = 0; iIdx < 70; iIdx = iIdx + 1) {
+        for (var iIdx = 0; iIdx < 60; iIdx = iIdx + 1) {
           imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
         }
 
