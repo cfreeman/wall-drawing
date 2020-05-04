@@ -240,14 +240,10 @@
         var imIN = intersect(imTL, imBR, imTR, imBL);
 
         var imOF = [iXpos - imIN[0], iYpos - imIN[1]];
-        //console.log("DESIRED POS: [" + iXpos + "," + iYpos + "]");
-        //console.log("INTERSECT: [" + imIN[0] + "," + imIN[1] + "]");
-        //console.log("OFFSET: [" + imOF[0] + "," + imOF[1] + "]");
 
         ctx.beginPath();
-        ctx.strokeStyle = "rgba(" + 186 + "," + rand(8, 28) + "," + rand(16, 56) + "," + 0.8 + ")";
+        ctx.strokeStyle = "rgba(" + rand(184, 186) + "," + rand(8, 28) + "," + rand(16, 56) + "," + 0.8 + ")";
 
-        //colorToS(cColor); //TODO: Add color variation to cross.
         ctx.lineWidth = 3;
 
         ctx.moveTo(imTL[0] + imOF[0], imTL[1] + imOF[1]);
