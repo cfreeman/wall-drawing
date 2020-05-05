@@ -3,66 +3,85 @@
   <head>
     <meta charset="utf-8">
     <title>Line Drawing</title>
-    <style>body {margin: 0;} video {display:none;}
+    <style>body {margin: 0;}
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
     <script>
+      /*
+       * Copyright (c) Clinton Freeman 2020
+       *
+       * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+       * associated documentation files (the "Software"), to deal in the Software without restriction,
+       * including without limitation the rights to use, copy, modify, merge, publish, distribute,
+       * sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+       * furnished to do so, subject to the following conditions:
+       *
+       * The above copyright notice and this permission notice shall be included in all copies or
+       * substantial portions of the Software.
+       *
+       * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+       * NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+       * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+       * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+       * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+       */
+
       "use strict";
 
-      function getNormalGenerator() {
-        return (function() {
-            var oldMu, oldSigma;
-            var x2, multiplier, genReady;
+    //   function getNormalGenerator() {
+    //     return (function() {
+    //         var oldMu, oldSigma;
+    //         var x2, multiplier, genReady;
 
-            return function normal(mu, sigma) {
+    //         return function normal(mu, sigma) {
 
-                var x1, u1, u2, v1, v2, s;
+    //             var x1, u1, u2, v1, v2, s;
 
-                if ('number' !== typeof mu) {
-                    throw new TypeError('nextNormal: mu must be number.');
-                }
-                if ('number' !== typeof sigma) {
-                    throw new TypeError('nextNormal: sigma must be number.');
-                }
+    //             if ('number' !== typeof mu) {
+    //                 throw new TypeError('nextNormal: mu must be number.');
+    //             }
+    //             if ('number' !== typeof sigma) {
+    //                 throw new TypeError('nextNormal: sigma must be number.');
+    //             }
 
-                if (mu !== oldMu || sigma !== oldSigma) {
-                    genReady = false;
-                    oldMu = mu;
-                    oldSigma = sigma;
-                }
+    //             if (mu !== oldMu || sigma !== oldSigma) {
+    //                 genReady = false;
+    //                 oldMu = mu;
+    //                 oldSigma = sigma;
+    //             }
 
-                if (genReady) {
-                    genReady = false;
-                    return (sigma * x2) + mu;
-                }
+    //             if (genReady) {
+    //                 genReady = false;
+    //                 return (sigma * x2) + mu;
+    //             }
 
-                u1 = Math.random();
-                u2 = Math.random();
+    //             u1 = Math.random();
+    //             u2 = Math.random();
 
 
-                v1 = (2 * u1) - 1;
-                v2 = (2 * u2) - 1;
+    //             v1 = (2 * u1) - 1;
+    //             v2 = (2 * u2) - 1;
 
-                s = (v1 * v1) + (v2 * v2);
+    //             s = (v1 * v1) + (v2 * v2);
 
-                if (s >= 1) {
-                    return normal(mu, sigma);
-                }
+    //             if (s >= 1) {
+    //                 return normal(mu, sigma);
+    //             }
 
-                multiplier = Math.sqrt(-2 * Math.log(s) / s);
+    //             multiplier = Math.sqrt(-2 * Math.log(s) / s);
 
-                x1 = v1 * multiplier;
-                x2 = v2 * multiplier;
+    //             x1 = v1 * multiplier;
+    //             x2 = v2 * multiplier;
 
-                genReady = true;
+    //             genReady = true;
 
-                return (sigma * x1) + mu;
+    //             return (sigma * x1) + mu;
 
-            };
-        })();
-    };
+    //         };
+    //     })();
+    // };
 
       function intersect(imP1, imP2, imP3, imP4) {
         var iT = (((imP1[0] - imP3[0])*(imP3[1] - imP4[1])) -
@@ -127,43 +146,53 @@
         return imRes;
       }
 
-      function drawLine(ctx, imPrev, iWidth, cCross) {
-
-        // TODO: Remove debug information.
-        console.log("**** DRAW Line ****");
-
-        var fuNormal = getNormalGenerator();
-
-        // Define the style of the line.
-        var iGrey = rand(0, 100); // TODO: Vary color of line along line.
-        var sRGB = "rgb("+iGrey+","+iGrey+","+iGrey+")";
+      function drawTurn(ctx, imPrev, iWidth, iXpos, iYpos) {
+        console.log("DRAW TURN ****");
 
         ctx.beginPath();
-        ctx.strokeStyle = sRGB
+
+        // Define the style of the line.
+        var iGrey = rand(0, 100);
         ctx.lineWidth = (iGrey < 20) ? 2 : 1;
 
+        // TODO: Improve the variation of colour along the line.
+        var gradient = ctx.createLinearGradient(0, 0, iWidth, 0);
+        gradient.addColorStop(0, "rgb("+iGrey+","+iGrey+","+iGrey+")");
+
+        iGrey = iGrey + rand(-100, 100);
+        iGrey = Math.min(100, Math.max(0, iGrey));
+        gradient.addColorStop(frand(0.2, 0.8), "rgb("+iGrey+","+iGrey+","+iGrey+")");
+
+        iGrey = iGrey + rand(-100, 100);
+        iGrey = Math.min(100, Math.max(0, iGrey));
+        gradient.addColorStop(1, "rgb("+iGrey+","+iGrey+","+iGrey+")");
+        ctx.strokeStyle = gradient;
+
         var iYgap = rand(6, 12);
-        console.log("iYgap="+iYgap);
 
         var iXprev = 0;
-        var iXpos = 0;
-        var iYpos = getNearestYValue(imPrev, 0) + iYgap;
+        if (iYpos < 0) {
+          iYpos = getNearestYValue(imPrev, 0) + iYgap;
+        }
         var imLine = new Map();
 
         // If we lift our pencil, our turn is over. There is 40% chance of
         // accidentially lifting the pencil and finishing the line early.
         var fXlift = 1.0;
         if (chance(23)) {
-          fXlift = frand(0.0, 1.0);
+          fXlift = frand((iXpos / iWidth), 1.0);
         }
 
         // If we touch the line above, our turn is over. There is a 40% chance
         // of accidentially touching the line above and finishing the line early.
         var fXcross = 1.0;
         if (fXlift > 0.99 & chance(40)) {
-          fXcross = frand(0.0, 1.0);
+          fXcross = frand((iXpos / iWidth), 1.0);
           console.log("CROSS PERMITTED AFTER " + fXcross * iWidth);
         }
+
+        //TODO: Sometimes we get into a situation where we have giant clusters
+        // of turn ends.
 
         // Move to the start of the line.
         ctx.moveTo(iXpos, iYpos);
@@ -174,21 +203,20 @@
           var iYdeltaScale = Math.max(1.0, (iYdelta / iYgap));
 
           iXpos = iXpos + rand(2, 5);
-          iYpos = iYpos + rand(-2 * iYdeltaScale, 7 / iYdeltaScale) + binomialRand(0, 2, fuNormal);
+          iYpos = iYpos + rand(-2 * iYdeltaScale, 7 / iYdeltaScale);
 
           // Enforce the crossing limits.
-          if((iXpos < iWidth * fXcross) && ((iYpos - iYprev) <= 3)) {
+          if((iXpos < (iWidth * fXcross)) && ((iYpos - iYprev) <= 3)) {
             // Don't permit the lines from crossing before our randomly allocated
             // slot.
-            iYpos = iYpos + 5;
+            iYpos = iYpos + 7;
           } else if (iXpos > iWidth * fXcross) {
             // We need to cross the line above. Tilt the scales in our favour.
             iYpos = iYpos - 2;
           }
 
           // Add the next segment to the line.
-          //ctx.lineTo(iXpos, iYpos);
-          ctx.quadraticCurveTo(iXprev + (iXpos - iXprev), iYprev + (iYpos - iYprev), iXpos, iYpos);
+          ctx.lineTo(iXpos, iYpos);
           imLine.set(iXpos, iYpos);
 
           // We touched the line above. Our turn is over -- we are not checking the
@@ -211,10 +239,29 @@
         ctx.stroke();
         ctx.closePath();
 
-        // If we didn't make it to the end. Draw a cross.
-        if (iXpos < iWidth) {
-          drawCross(ctx, cCross, iXpos, iYpos);
-          imLine = appendMapTail(imLine, imPrev, iXpos);
+        return [imLine, iXpos, iYpos];
+      }
+
+      function drawLine(ctx, imPrev, iWidth, cCross) {
+
+        // TODO: Remove debug information.
+        console.log("**** DRAW Line ****");
+
+        var imLine = new Map();
+        var iXpos = 0;
+        var iYpos = -1;
+
+        while (iXpos < iWidth) {
+          var turn = drawTurn(ctx, imPrev, iWidth, iXpos, iYpos);
+
+          iXpos = turn[1];
+          iYpos = turn[2] + rand(0, 2);
+          imLine = appendMapTail(imLine, turn[0], 0);
+
+          // If the turn didn't make it to the end of the line. Draw a cross.
+          if (iXpos < iWidth) {
+            drawCross(ctx, cCross, iXpos, iYpos);
+          }
         }
 
         return imLine;
@@ -273,7 +320,7 @@
         var imStart = new Map([[eCanvas.width, 0]]);
 
         var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
-        for (var iIdx = 0; iIdx < 60; iIdx = iIdx + 1) {
+        for (var iIdx = 0; iIdx < 5; iIdx = iIdx + 1) {
           imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
         }
 
@@ -282,8 +329,6 @@
             ctx.drawImage(img, eCanvas.width - 98, eCanvas.height - 44);
         }
         img.src = "https://reprage.com/images/icons4.png";
-        console.log(img)
-
 
         // Tom Sachs studio numbers: (27 / 61) ~ 40% line failure.
       })();
