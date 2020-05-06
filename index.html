@@ -141,7 +141,7 @@
         gradient.addColorStop(1, "rgb("+iGrey+","+iGrey+","+iGrey+")");
         ctx.strokeStyle = gradient;
 
-        var iYgap = rand(6, 10);
+        var iYgap = rand(7, 12);
 
         var iXprev = iXpos;
         if (iYpos < 0) {
@@ -152,14 +152,14 @@
         // If we lift our pencil, our turn is over. There is 40% chance of
         // accidentially lifting the pencil and finishing the line early.
         var fXlift = 1.0;
-        if (chance(23)) {
+        if (chance(50)) {
           fXlift = frand((iXpos / iWidth), 1.0);
         }
 
         // If we touch the line above, our turn is over. There is a 40% chance
         // of accidentially touching the line above and finishing the line early.
         var fXcross = 1.0;
-        if (fXlift > 0.99 & chance(40)) {
+        if (fXlift > 0.99 & chance(50)) {
           fXcross = frand((iXpos / iWidth), 1.0);
           console.log("CROSS PERMITTED AFTER " + fXcross * iWidth);
         }
@@ -177,6 +177,7 @@
 
           iXpos = iXpos + rand(2, 5);
           var iYprev = getNearestYValue(imPrev, iXprev + 12);
+          var iYprev = getNearestYValue(imPrev, iXprev + 7);
 
           var iYdelta = (iYpos - iYprev);
           var iYdeltaScale = Math.max(1.0, (iYdelta / iYgap));
@@ -188,7 +189,7 @@
           if((iXpos < (iWidth * fXcross)) && ((iYpos - iYprev) <= 4)) {
             // Don't permit the lines from crossing before our randomly allocated
             // slot.
-            iYpos = iYprev + 14;
+            iYpos = iYprev + 16;
             //console.log("D");
           } else if (iXpos > (iWidth * fXcross)) {
             // We need to cross the line above. Tilt the scales in our favour.
