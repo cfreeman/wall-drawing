@@ -42,18 +42,8 @@
 
       }
 
-      function binomialRand(iStart, iEnd, fuGenerator) {
-        var fRand = (fuGenerator(0, 0.2) + 1.0) / 2.0;
-        //console.log("binomialRand="+fRand);
-        var iResult = (fRand * iEnd) + iStart | 0;
-
-        //console.log("iResult="+iResult);
-        iResult = Math.min(iResult, iEnd);
-        return Math.max(iResult, iStart);
-      }
-
       function frand(fStart, fEnd) {
-        return (Math.random() * fEnd) + fStart;
+        return (Math.random() * (fEnd - fStart)) + fStart;
       }
 
       function rand(iStart, iEnd) {
@@ -91,6 +81,12 @@
 
           return this.iSum / this.iLength;
         }
+
+        flushValue(iValue) {
+          for(var iDx = 0; iDx < this.iSize; iDx = iDx + 1) {
+            this.addValue(iValue);
+          }
+        }
       }
 
       function getNearestYValue(imMap, iX) {
@@ -99,11 +95,11 @@
         for (let key of imMap.keys()) {
           iY = imMap.get(key)
           if (iX <= key) {
-            return iY;
+            return [key, iY];
           }
         }
 
-        return iY;
+        return [iX, iY];
       }
 
       function appendMapTail(imDst, imSrc, iX) {
@@ -121,6 +117,7 @@
 
       function drawTurn(ctx, imPrev, iWidth, iXpos, iYpos) {
         console.log("DRAW TURN ****");
+        console.log("**************");
 
         ctx.beginPath();
 
@@ -143,73 +140,107 @@
 
         var iYgap = rand(7, 12);
 
+        // Initialise the starting point for the line.
         var iXprev = iXpos;
+
+        // If this is the first turn on the line, use a random gap offset
+        // from the line above.
         if (iYpos < 0) {
-          iYpos = getNearestYValue(imPrev, iXpos) + iYgap;
+          iYpos = getNearestYValue(imPrev, iXpos)[1] + iYgap;
         }
         var imLine = new Map();
 
-        // If we lift our pencil, our turn is over. There is 40% chance of
-        // accidentially lifting the pencil and finishing the line early.
+        // Work out if and where we will lift our pencil or cross the line above.
         var fXlift = 1.0;
-        if (chance(50)) {
-          fXlift = frand((iXpos / iWidth), 1.0);
-        }
-
-        // If we touch the line above, our turn is over. There is a 40% chance
-        // of accidentially touching the line above and finishing the line early.
         var fXcross = 1.0;
-        if (fXlift > 0.99 & chance(50)) {
-          fXcross = frand((iXpos / iWidth), 1.0);
-          console.log("CROSS PERMITTED AFTER " + fXcross * iWidth);
+        if (chance(47 - (47 * (iXpos / iWidth)))) {
+          // 50:50 chance that we either lift the pencil or we cross above.
+          if (chance(50)) {
+            fXlift = frand((iXpos / iWidth), 1.0);
+            console.log("LIFT PERMITTED AFTER " + fXlift * iWidth);
+          } else {
+            fXcross = frand((iXpos / iWidth), 1.0);
+            console.log("CROSS PERMITTED AFTER " + fXcross * iWidth);
+          }
         }
 
         //TODO: Sometimes we get into a situation where we have giant clusters
         // of turn ends.
 
-        // Move to the start of the line.
+        // Draw the start of the line.
         ctx.moveTo(iXpos, iYpos);
-
         var mAvg = new movingAverage(3);
         mAvg.addValue(iYpos);
 
+        // Draw the turn untill we get to the end of the line.
         while(iXpos < iWidth) {
 
           iXpos = iXpos + rand(2, 5);
-          var iYprev = getNearestYValue(imPrev, iXprev + 12);
-          var iYprev = getNearestYValue(imPrev, iXprev + 7);
+          var fX = iXpos / iWidth;
 
+          var last = getNearestYValue(imPrev, iXpos + 10);
+
+          var iYprev = last[1];
           var iYdelta = (iYpos - iYprev);
-          var iYdeltaScale = Math.max(1.0, (iYdelta / iYgap));
+          var iYdeltaScale = Math.max(0.0, (iYdelta / iYgap));
 
-          //console.log("[" + iXpos + "] = " + iYpos + "," + iYprev
-          //            );
+          // If we have gotten to close to the line above and it is not yet
+          // time to cross above. Move away.
+          if((fX <  fXcross) && (iYdelta <= (iYgap - 5))) {
+            iYpos = iYprev + rand(3, 8);
+            console.log("D");
 
-          // Enforce the crossing limits.
-          if((iXpos < (iWidth * fXcross)) && ((iYpos - iYprev) <= 4)) {
-            // Don't permit the lines from crossing before our randomly allocated
-            // slot.
-            iYpos = iYprev + 16;
-            //console.log("D");
-          } else if (iXpos > (iWidth * fXcross)) {
-            // We need to cross the line above. Tilt the scales in our favour.
-            iYpos = iYpos - rand(1, 5);
-            //console.log("X");
+          // It is now time to cross the line above, tile the scales in our
+          // favour so that we cross above.
+          } else if (fX > fXcross) {
+            iYpos = iYpos - rand(3, 8);
+            console.log("X");
+
+          // We are not too close, nor is it time to cross the line above.
+          // Keep wibble Wobbling away.
           } else {
-            iYpos = mAvg.addValue(iYpos + rand(-4 * iYdeltaScale, 14 / iYdeltaScale));
-            //console.log("N");
+
+            // lower -> get more negative as iYdeltaScale increases.
+            // upper -> get less positive as iYdeltaScale increases.
+            var iLower = -4 * iYdeltaScale;
+            var iUpper = 14 / iYdeltaScale;
+
+            // lower --> get more negative as iXpos gets closer to fXcross.
+            // upper --> get less positive as iXpos gets closer to FXcross.
+            if (fXcross < 1.0) {
+              iLower = iLower - (4 * (fX / fXcross));
+              iUpper = iUpper - (14 * (fX / fXcross));
+            }
+
+            iYpos = iYpos + rand(iLower, iUpper);
+            console.log("N");
           }
 
           iYpos = mAvg.addValue(iYpos);
+
+
+
+
+          //console.log("[" + iXpos + "," + iYpos + "] iYPrev=" + iYprev + " iYdelta=" + iYdelta + " iYdeltaScale=" + iYdeltaScale + " Xafter=" + (iWidth * fXcross) + "Lafter=" + (iWidth * fXlift));
 
           // Add the next segment to the line.
           ctx.lineTo(iXpos, iYpos);
           imLine.set(iXpos, iYpos);
 
+
+          var test = getNearestYValue(imPrev, iXpos);
+
+          var fDist = Math.sqrt((iXpos - test[0])*(iXpos - test[0]) + (iYpos - test[1])*(iYpos - test[1]));
+
+
+          //console.log("LAST: [" + test[0] + "," + test[1] + "] CROSS:[" + iXpos + "," + iYpos + "] + DIST: " + fDist);
+
+
           // We touched the line above. Our turn is over -- we are not checking the
           // line above correctly.
-          if (iYpos - iYprev <= 3) {
-            console.log("CROSS: " + iXpos + "," + iYpos);
+          if (iYpos - test[1] <= 3) {
+            // TODO: Sometimes we miss the line above, and don't cross properlly.
+            console.log("POS[" + iXpos + "," + iYpos + "] ABOVE[" + test[0] + "," + test[1] + " DIST:" + fDist );
             break;
           }
 
@@ -232,7 +263,10 @@
       function drawLine(ctx, imPrev, iWidth, cCross) {
 
         // TODO: Remove debug information.
-        console.log("**** DRAW Line ****");
+        console.log("**************");
+        console.log("**** DRAW Line");
+        console.log("**************");
+        console.log("**************");
 
         var imLine = new Map();
         var iXpos = 0;
@@ -313,7 +347,7 @@
         var imStart = new Map([[eCanvas.width, 0]]);
 
         var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
-        for (var iIdx = 0; iIdx < 50; iIdx = iIdx + 1) {
+        for (var iIdx = 0; iIdx < 5; iIdx = iIdx + 1) {
           imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
         }
 
