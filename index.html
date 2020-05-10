@@ -332,17 +332,14 @@
     var sParent = window.getComputedStyle(eCanvas.parentElement);
     eCanvas.width = parseInt(sParent.width, 10);
 
-    eCanvas.height = eCanvas.width + 50;
-    if (window.innerWidth < (eCanvas.width + 50)) {
-      eCanvas.height = window.innerHeight;
-    }
+    eCanvas.height = Math.min(600, eCanvas.width + 50);
 
     var ctx = eCanvas.getContext('2d');
     ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
 
     ctx.beginPath();
     ctx.rect(0, 0, eCanvas.width, eCanvas.height);
-    ctx.fillStyle = "rgb(240, 240, 240)";
+    ctx.fillStyle = "rgb(230, 230, 230)";
     ctx.fill();
     ctx.closePath();
 
