@@ -158,9 +158,11 @@
     // Initialise the starting point for the line.
     var iXprev = iXpos;
 
+    var bFirst = (iYpos < 0);
+
     // If this is the first turn on the line, use a random gap offset
     // from the line above.
-    if (iYpos < 0) {
+    if (bFirst) {
       iYpos = getNearestYValue(imPrev, iXpos)[1] + iYgap;
     }
     var imLine = new Map();
@@ -172,7 +174,7 @@
       // 50:50 chance that we either lift the pencil or we cross above.
       if (chance(50)) {
         fXlift = frand((iXpos / iWidth), 1.0);
-      } else {
+      } else if(!bFirst) { // No crosses on the first line.
         fXcross = frand((iXpos / iWidth), 1.0);
       }
     }
