@@ -7,383 +7,358 @@
     </style>
   </head>
   <body>
+    <div class="content" style="padding-left:15px;padding-right:15px;">
     <canvas id="canvas"></canvas>
-    <script>
-      /*
-       * Copyright (c) Clinton Freeman 2020
-       *
-       * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
-       * associated documentation files (the "Software"), to deal in the Software without restriction,
-       * including without limitation the rights to use, copy, modify, merge, publish, distribute,
-       * sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
-       * furnished to do so, subject to the following conditions:
-       *
-       * The above copyright notice and this permission notice shall be included in all copies or
-       * substantial portions of the Software.
-       *
-       * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
-       * NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-       * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-       * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-       * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-       */
+    </div>
+<script>
+  "use strict";
+  /*
+   * Copyright (c) Clinton Freeman 2020
+   *
+   * Permission is hereby granted, free of charge, to any person obtaining a
+   * copy of this software and associated documentation files (the "Software"),
+   * to deal in the Software without restriction, including without limitation
+   * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+   * and/or sell copies of the Software, and to permit persons to whom the
+   * Software is furnished to do so, subject to the following conditions:
+   *
+   * The above copyright notice and this permission notice shall be included
+   * in all copies or substantial portions of the Software.
+   *
+   * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+   * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   * DEALINGS IN THE SOFTWARE.
+   */
+  function intersect(imP1, imP2, imP3, imP4) {
+    var iT = (((imP1[0] - imP3[0])*(imP3[1] - imP4[1])) -
+             ((imP1[1] - imP3[1])*(imP3[0] - imP4[0])))
+             /
+             (((imP1[0] - imP2[0])*(imP3[1] - imP4[1])) -
+             ((imP1[1] - imP2[1])*(imP3[0] - imP4[0])));
 
-      "use strict";
+    return [Math.round(imP1[0] + iT*(imP2[0] - imP1[0])),
+            Math.round(imP1[1] + iT*(imP2[1] - imP1[1]))];
 
-      function intersect(imP1, imP2, imP3, imP4) {
-        var iT = (((imP1[0] - imP3[0])*(imP3[1] - imP4[1])) -
-                 ((imP1[1] - imP3[1])*(imP3[0] - imP4[0])))
-                 /
-                 (((imP1[0] - imP2[0])*(imP3[1] - imP4[1])) -
-                 ((imP1[1] - imP2[1])*(imP3[0] - imP4[0])));
+  }
 
-        return [Math.round(imP1[0] + iT*(imP2[0] - imP1[0])),
-                Math.round(imP1[1] + iT*(imP2[1] - imP1[1]))];
+  function frand(fStart, fEnd) {
+    return (Math.random() * (fEnd - fStart)) + fStart;
+  }
 
+  function rand(iStart, iEnd) {
+    return Math.floor((Math.random() * iEnd) + iStart) | 0;
+  }
+
+  function lin(iStart, iEnd, fStart, fEnd, fPos) {
+    // If we are past the ends of our input range, return the end points.
+    if (fPos > fEnd) {
+      return iEnd;
+    }
+
+    if (fPos < fStart) {
+      return iStart;
+    }
+
+    // Solve y = mx + c using two points: [fStart, iStart] and [fEnd, iEnd]
+    var fM = ((iEnd - iStart) / (fEnd - fStart));
+    var fC = (-fM * fStart) + iStart;
+
+    // Solve for for fPos with a freshly created equation.
+    return (fPos * fM) + fC;
+  }
+
+  function chance(iProbability) {
+    if (rand(0, 100) >= (100 - iProbability)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  class movingAverage {
+    constructor(size) {
+      this.iLength = 0;
+      this.iSize = size;
+      this.iDx = 0;
+      this.aBuffer = [];
+      this.iSum = 0;
+    }
+
+    addValue(iValue) {
+      if (this.iLength < this.iSize) {
+        this.iLength = this.iLength + 1;
+        this.aBuffer.push(iValue);
+        this.iSum = this.iSum + iValue;
+      } else {
+        this.iSum = this.iSum - this.aBuffer[this.iDx];
+        this.aBuffer[this.iDx] = iValue;
+        this.iSum = this.iSum + iValue;
+        this.iDx = (this.iDx + 1) % this.iSize;
       }
 
-      function frand(fStart, fEnd) {
-        return (Math.random() * (fEnd - fStart)) + fStart;
+      return this.iSum / this.iLength;
+    }
+
+    flushValue(iValue) {
+      for(var iDx = 0; iDx < this.iSize; iDx = iDx + 1) {
+        this.addValue(iValue);
+      }
+    }
+  }
+
+  function getNearestYValue(imMap, iX) {
+    var iY = 0;
+
+    for (let key of imMap.keys()) {
+      iY = imMap.get(key)
+      if (iX <= key) {
+        return [key, iY];
+      }
+    }
+
+    return [iX, iY];
+  }
+
+  function appendMapTail(imDst, imSrc, iX) {
+    var imRes = new Map(imDst);
+
+    for (let key of imSrc.keys()) {
+      if (key > iX) {
+        imRes.set(key, imSrc.get(key));
       }
 
-      function rand(iStart, iEnd) {
-        return Math.floor((Math.random() * iEnd) + iStart) | 0;
+    }
+
+    return imRes;
+  }
+
+  function drawTurn(ctx, imPrev, iWidth, iXpos, iYpos) {
+    ctx.beginPath();
+
+    // Define the style of the line.
+    var iGrey = rand(0, 100);
+    ctx.lineWidth = (iGrey < 20) ? 2 : 1;
+
+    var gradient = ctx.createLinearGradient(0, 0, iWidth, 0);
+    gradient.addColorStop(0, "rgb("+iGrey+","+iGrey+","+iGrey+")");
+
+    iGrey = (iGrey < 20) ? rand(0, 20) : rand(50, 120);
+    gradient.addColorStop(frand(0.2, 0.8), "rgb("+iGrey+","+iGrey+","+iGrey+")");
+
+    iGrey = (iGrey < 20) ? rand(0, 100) : rand(0, 100);
+    gradient.addColorStop(1, "rgb("+iGrey+","+iGrey+","+iGrey+")");
+    ctx.strokeStyle = gradient;
+
+    var iYgap = rand(7, 12);
+
+    // Initialise the starting point for the line.
+    var iXprev = iXpos;
+
+    // If this is the first turn on the line, use a random gap offset
+    // from the line above.
+    if (iYpos < 0) {
+      iYpos = getNearestYValue(imPrev, iXpos)[1] + iYgap;
+    }
+    var imLine = new Map();
+
+    // Work out if and where we will lift our pencil or cross the line above.
+    var fXlift = 1.0;
+    var fXcross = 1.0;
+    if (chance(47 - (47 * (iXpos / iWidth)))) {
+      // 50:50 chance that we either lift the pencil or we cross above.
+      if (chance(50)) {
+        fXlift = frand((iXpos / iWidth), 1.0);
+      } else {
+        fXcross = frand((iXpos / iWidth), 1.0);
+      }
+    }
+
+    // Draw the start of the line.
+    ctx.moveTo(iXpos, iYpos);
+    var mAvg = new movingAverage(3);
+    mAvg.addValue(iYpos);
+
+    // Draw the turn untill we get to the end of the line.
+    while(iXpos < iWidth) {
+
+      iXpos = iXpos + rand(2, 5);
+      var fX = iXpos / iWidth;
+
+      var last = getNearestYValue(imPrev, iXpos + 10);
+
+      var iYprev = last[1];
+      var iYdelta = (iYpos - iYprev);
+      var iYdeltaScale = Math.max(0.0, (iYdelta / iYgap));
+
+      // If we have gotten to close to the line above and it is not yet
+      // time to cross above. Move away.
+      if((fX < fXcross) && (iYdeltaScale < 0.5)) {
+        iYpos = iYprev + rand(4, 8);
+        //console.log("D");
+
+      // It is now time to cross the line above, tile the scales in our
+      // favour so that we cross above.
+      } else if (fX > fXcross) {
+        iYpos = iYpos - rand(3, 8);
+        //console.log("X");
+
+      // We are not too close, nor is it time to cross the line above.
+      // Keep wibble Wobbling away.
+      } else {
+
+        var iLower = lin(3, -8, 0.55, 1.0, iYdeltaScale);
+        // iLower = iYdeltaScale = 0.5, iLower = +1
+        //          iYdeltaScale = 1.0, iLower = -4;
+        //        -> get more negative as iYdeltaScale increases.
+
+        var iUpper = lin(14, -1, 0.5, 4.0, iYdeltaScale);
+        // iUpper = TODO: Work out linear envelope for this.
+        //          iYdeltaScale = 0.5 iUpper = +5
+        //          iYdeltaScale = 2.0 iUpper = -1
+        //        -> get less positive as iYdeltaScale increases.
+
+        if (fXcross < 1.0) {
+          iLower = iLower + lin(0, -3, 0.7, 1.0, (fX / fXcross));
+          // iLower -> Gets more negative as iXpos gets closer to fXcross.
+
+          iUpper = iUpper + lin(0, -4, 0.7, 1.0, (fX / fXcross));
+          // iUpper -> Gets less positive as iXpos gets closer to fXcross.
+        }
+
+        iYpos = iYpos + rand(iLower, iUpper);
+        //console.log("N");
       }
 
-      function lin(iStart, iEnd, fStart, fEnd, fPos) {
-        // If we are past the ends of our input range, return the end points.
-        if (fPos > fEnd) {
-          return iEnd;
-        }
+      // Add the next segment to the line.
+      iYpos = mAvg.addValue(iYpos);
+      ctx.lineTo(iXpos, iYpos);
+      imLine.set(iXpos, iYpos);
 
-        if (fPos < fStart) {
-          return iStart;
-        }
-
-        // Solve y = mx + c using two points: [fStart, iStart] and [fEnd, iEnd]
-        var fM = ((iEnd - iStart) / (fEnd - fStart));
-        var fC = (-fM * fStart) + iStart;
-
-        // Solve for for fPos with a freshly created equation.
-        return (fPos * fM) + fC;
+      // We touched the line above. Our turn is over -- we are not checking the
+      // line above correctly.
+      var test = getNearestYValue(imPrev, iXpos);
+      if (iYpos - test[1] <= 2) {
+        break;
       }
 
-      function chance(iProbability) {
-        if (rand(0, 100) >= (100 - iProbability)) {
-          return true;
-        }
-
-        return false;
+      // We lifted the pencil. Our turn is over.
+      if (fXlift < 1.0 && (iXpos >= iWidth * fXlift)) {
+        break;
       }
 
-      class movingAverage {
-        constructor(size) {
-          this.iLength = 0;
-          this.iSize = size;
-          this.iDx = 0;
-          this.aBuffer = [];
-          this.iSum = 0;
-        }
+      iXprev = iXpos;
+    }
 
-        addValue(iValue) {
-          if (this.iLength < this.iSize) {
-            this.iLength = this.iLength + 1;
-            this.aBuffer.push(iValue);
-            this.iSum = this.iSum + iValue;
-          } else {
-            this.iSum = this.iSum - this.aBuffer[this.iDx];
-            this.aBuffer[this.iDx] = iValue;
-            this.iSum = this.iSum + iValue;
-            this.iDx = (this.iDx + 1) % this.iSize;
-          }
+    // Render the line and close the path.
+    ctx.stroke();
+    ctx.closePath();
 
-          return this.iSum / this.iLength;
-        }
+    return [imLine, iXpos, iYpos];
+  }
 
-        flushValue(iValue) {
-          for(var iDx = 0; iDx < this.iSize; iDx = iDx + 1) {
-            this.addValue(iValue);
-          }
-        }
+  function drawLine(ctx, imPrev, iWidth, cCross) {
+    var imLine = new Map();
+    var iXpos = 0;
+    var iYpos = -1;
+
+    while (iXpos < iWidth) {
+      var turn = drawTurn(ctx, imPrev, iWidth, iXpos, iYpos);
+
+      iXpos = turn[1];
+      iYpos = turn[2];
+      imLine = appendMapTail(imLine, turn[0], 0);
+
+      // If the turn didn't make it to the end of the line. Draw a cross.
+      if (iXpos < iWidth) {
+        drawCross(ctx, cCross, iXpos, iYpos);
       }
 
-      function getNearestYValue(imMap, iX) {
-        var iY = 0;
-
-        for (let key of imMap.keys()) {
-          iY = imMap.get(key)
-          if (iX <= key) {
-            return [key, iY];
-          }
-        }
-
-        return [iX, iY];
-      }
-
-      function appendMapTail(imDst, imSrc, iX) {
-        var imRes = new Map(imDst);
-
-        for (let key of imSrc.keys()) {
-          if (key > iX) {
-            imRes.set(key, imSrc.get(key));
-          }
-
-        }
-
-        return imRes;
-      }
-
-      function drawTurn(ctx, imPrev, iWidth, iXpos, iYpos) {
-        console.log("DRAW TURN ****");
-        console.log("**************");
-
-        ctx.beginPath();
-
-        // Define the style of the line.
-        var iGrey = rand(0, 100);
-        ctx.lineWidth = (iGrey < 20) ? 2 : 1;
-
-        // TODO: Improve the variation of colour along the line.
-        var gradient = ctx.createLinearGradient(0, 0, iWidth, 0);
-        gradient.addColorStop(0, "rgb("+iGrey+","+iGrey+","+iGrey+")");
-
-        iGrey = iGrey + rand(-100, 100);
-        iGrey = Math.min(100, Math.max(0, iGrey));
-        gradient.addColorStop(frand(0.2, 0.8), "rgb("+iGrey+","+iGrey+","+iGrey+")");
-
-        iGrey = iGrey + rand(-100, 100);
-        iGrey = Math.min(100, Math.max(0, iGrey));
-        gradient.addColorStop(1, "rgb("+iGrey+","+iGrey+","+iGrey+")");
-        ctx.strokeStyle = gradient;
-
-        var iYgap = rand(7, 12);
-
-        // Initialise the starting point for the line.
-        var iXprev = iXpos;
-
-        // If this is the first turn on the line, use a random gap offset
-        // from the line above.
-        if (iYpos < 0) {
-          iYpos = getNearestYValue(imPrev, iXpos)[1] + iYgap;
-        }
-        var imLine = new Map();
-
-        // Work out if and where we will lift our pencil or cross the line above.
-        var fXlift = 1.0;
-        var fXcross = 1.0;
-        if (chance(47 - (47 * (iXpos / iWidth)))) {
-          // 50:50 chance that we either lift the pencil or we cross above.
-          if (chance(50)) {
-            fXlift = frand((iXpos / iWidth), 1.0);
-            console.log("LIFT PERMITTED AFTER " + fXlift * iWidth);
-          } else {
-            fXcross = frand((iXpos / iWidth), 1.0);
-            console.log("CROSS PERMITTED AFTER " + fXcross * iWidth);
-          }
-        }
-
-        //TODO: Sometimes we get into a situation where we have giant clusters
-        // of turn ends.
-
-        // Draw the start of the line.
-        ctx.moveTo(iXpos, iYpos);
-        var mAvg = new movingAverage(3);
-        mAvg.addValue(iYpos);
-
-        // Draw the turn untill we get to the end of the line.
-        while(iXpos < iWidth) {
-
-          iXpos = iXpos + rand(2, 5);
-          var fX = iXpos / iWidth;
-
-          var last = getNearestYValue(imPrev, iXpos + 10);
-
-          var iYprev = last[1];
-          var iYdelta = (iYpos - iYprev);
-          var iYdeltaScale = Math.max(0.0, (iYdelta / iYgap));
-
-          // If we have gotten to close to the line above and it is not yet
-          // time to cross above. Move away.
-          if((fX < fXcross) && (iYdeltaScale < 0.5)) {
-            iYpos = iYprev + rand(3, 8);
-            console.log("D");
-
-          // It is now time to cross the line above, tile the scales in our
-          // favour so that we cross above.
-          } else if (fX > fXcross) {
-            iYpos = iYpos - rand(3, 8);
-            console.log("X");
-
-          // We are not too close, nor is it time to cross the line above.
-          // Keep wibble Wobbling away.
-          } else {
-
-            var iLower = lin(1, -4, 0.5, 1.0, iYdeltaScale);
-            // ILower = iYdeltaScale = 0.5, iLower = +1
-            //          iYdeltaScale = 1.0, iLower = -4;
-            //        -> get more negative as iYdeltaScale increases.
-
-            var iUpper = 14 / iYdeltaScale; // TODO: Work out linear envelope for this.
-            // IUpper =
-            //
-            //        -> get less positive as iYdeltaScale increases.
-
-
-            // lower --> get more negative as iXpos gets closer to fXcross.
-            // upper --> get less positive as iXpos gets closer to FXcross.
-            // if (fXcross < 1.0) {
-            //   iLower = iLower - (4 * (fX / fXcross)); // Go for 0.8 to 1.0 for fX/fXcross
-            //   iUpper = iUpper - (14 * (fX / fXcross));
-            // }
-
-            iYpos = iYpos + rand(iLower, iUpper);
-            console.log("N");
-          }
-
-          iYpos = mAvg.addValue(iYpos);
-
-
-
-
-          //console.log("[" + iXpos + "," + iYpos + "] iYPrev=" + iYprev + " iYdelta=" + iYdelta + " iYdeltaScale=" + iYdeltaScale + " Xafter=" + (iWidth * fXcross) + "Lafter=" + (iWidth * fXlift));
-
-          // Add the next segment to the line.
-          ctx.lineTo(iXpos, iYpos);
-          imLine.set(iXpos, iYpos);
-
-
-          var test = getNearestYValue(imPrev, iXpos);
-
-          var fDist = Math.sqrt((iXpos - test[0])*(iXpos - test[0]) + (iYpos - test[1])*(iYpos - test[1]));
-
-
-          //console.log("LAST: [" + test[0] + "," + test[1] + "] CROSS:[" + iXpos + "," + iYpos + "] + DIST: " + fDist);
-
-
-          // We touched the line above. Our turn is over -- we are not checking the
-          // line above correctly.
-          if (iYpos - test[1] <= 2) {
-            // TODO: Sometimes we miss the line above, and don't cross properlly.
-            console.log("POS[" + iXpos + "," + iYpos + "] ABOVE[" + test[0] + "," + test[1] + " DIST:" + fDist );
-            break;
-          }
-
-          // We lifted the pencil. Our turn is over.
-          if (fXlift < 1.0 && (iXpos >= iWidth * fXlift)) {
-            console.log("LIFT: " + iXpos + "," + iYpos);
-            break;
-          }
-
-          iXprev = iXpos;
-        }
-
-        // Render the line and close the path.
-        ctx.stroke();
-        ctx.closePath();
-
-        return [imLine, iXpos, iYpos];
-      }
-
-      function drawLine(ctx, imPrev, iWidth, cCross) {
-
-        // TODO: Remove debug information.
-        console.log("**************");
-        console.log("**** DRAW Line");
-        console.log("**************");
-        console.log("**************");
-
-        var imLine = new Map();
-        var iXpos = 0;
-        var iYpos = -1;
-
-        while (iXpos < iWidth) {
-          var turn = drawTurn(ctx, imPrev, iWidth, iXpos, iYpos);
-
-          iXpos = turn[1];
-          iYpos = turn[2] + rand(0, 2);
-          imLine = appendMapTail(imLine, turn[0], 0);
-
-          // If the turn didn't make it to the end of the line. Draw a cross.
-          if (iXpos < iWidth) {
-            drawCross(ctx, cCross, iXpos, iYpos);
-          }
-        }
-
-        return imLine;
-      }
-
-      function drawCross(ctx, cColor, iXpos, iYpos) {
-        var iRandWidth = 5;
-        var iRandCurve = 5;
-        var iTLx = iXpos - 8;
-        var iTLy = iYpos - 8;
-        var iBRx = iXpos + 8;
-        var iBRy = iYpos + 8;
-
-        var imTL = [iTLx + rand(-iRandWidth, iRandWidth),
-                    iTLy + rand(-iRandWidth, iRandWidth)];
-        var imBR = [iBRx + rand(-iRandWidth, iRandWidth),
-                    iBRy + rand(-iRandWidth, iRandWidth)];
-        var imTR = [iBRx + rand(-iRandWidth, iRandWidth),
-                    iTLy + rand(-iRandWidth, iRandWidth)];
-        var imBL = [iTLx + rand(-iRandWidth, iRandWidth),
-                    iBRy + rand(-iRandWidth, iRandWidth)];
-
-        var imIN = intersect(imTL, imBR, imTR, imBL);
-
-        var imOF = [iXpos - imIN[0], iYpos - imIN[1]];
-
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(" + rand(184, 186) + "," + rand(8, 28) + "," + rand(16, 56) + "," + 0.8 + ")";
-
-        ctx.lineWidth = 3;
-
-        ctx.moveTo(imTL[0] + imOF[0], imTL[1] + imOF[1]);
-        ctx.quadraticCurveTo(iBRx + rand(-iRandCurve, iRandCurve),
-                             iBRy + rand(-iRandCurve, iRandCurve),
-                             imBR[0] + imOF[0], imBR[1] + imOF[1]);
-
-        ctx.moveTo(imTR[0] + imOF[0], imTR[1] + imOF[1]);
-        ctx.quadraticCurveTo(iTLx + rand(-iRandCurve, iRandCurve),
-                             iBRy + rand(-iRandCurve, iRandCurve),
-                             imBL[0] + imOF[0], imBL[1] + imOF[1]);
-        ctx.stroke();
-        ctx.closePath();
-      }
-
-      // Main entry point.
-      (function() {
-        var cCross = [186, 8, 16, 0.8];
-        var eCanvas = document.getElementById('canvas');
-        eCanvas.width = window.innerWidth;
-        eCanvas.height = window.innerHeight-4;
-
-        var ctx = eCanvas.getContext('2d');
-
-        ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
-
-        ctx.beginPath();
-        ctx.rect(0, 0, eCanvas.width, eCanvas.height);
-        ctx.fillStyle = "rgb(240, 240, 240)";
-        ctx.fill();
-        ctx.closePath();
-
-        var imStart = new Map([[eCanvas.width, 0]]);
-
-        var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
-        for (var iIdx = 0; iIdx < 25; iIdx = iIdx + 1) {
-          imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
-        }
-
-        var img = new Image();
-        img.onload = function() {
-            ctx.drawImage(img, eCanvas.width - 98, eCanvas.height - 44);
-        }
-        img.src = "https://reprage.com/images/icons4.png";
-
-        // Tom Sachs studio numbers: (27 / 61) ~ 40% line failure.
-      })();
-
-    </script>
+      iXpos = iXpos + rand(0, 4);
+      iYpos = iYpos + rand(5, 8);
+    }
+
+    return imLine;
+  }
+
+  function drawCross(ctx, cColor, iXpos, iYpos) {
+    var iRandWidth = 5;
+    var iRandCurve = 5;
+    var iTLx = iXpos - 8;
+    var iTLy = iYpos - 8;
+    var iBRx = iXpos + 8;
+    var iBRy = iYpos + 8;
+
+    var imTL = [iTLx + rand(-iRandWidth, iRandWidth),
+                iTLy + rand(-iRandWidth, iRandWidth)];
+    var imBR = [iBRx + rand(-iRandWidth, iRandWidth),
+                iBRy + rand(-iRandWidth, iRandWidth)];
+    var imTR = [iBRx + rand(-iRandWidth, iRandWidth),
+                iTLy + rand(-iRandWidth, iRandWidth)];
+    var imBL = [iTLx + rand(-iRandWidth, iRandWidth),
+                iBRy + rand(-iRandWidth, iRandWidth)];
+
+    var imIN = intersect(imTL, imBR, imTR, imBL);
+
+    var imOF = [iXpos - imIN[0], iYpos - imIN[1]];
+
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(" + rand(184, 186) + "," + rand(8, 28) + "," + rand(16, 56) + "," + 0.8 + ")";
+
+    ctx.lineWidth = 3;
+
+    ctx.moveTo(imTL[0] + imOF[0], imTL[1] + imOF[1]);
+    ctx.quadraticCurveTo(iBRx + rand(-iRandCurve, iRandCurve),
+                         iBRy + rand(-iRandCurve, iRandCurve),
+                         imBR[0] + imOF[0], imBR[1] + imOF[1]);
+
+    ctx.moveTo(imTR[0] + imOF[0], imTR[1] + imOF[1]);
+    ctx.quadraticCurveTo(iTLx + rand(-iRandCurve, iRandCurve),
+                         iBRy + rand(-iRandCurve, iRandCurve),
+                         imBL[0] + imOF[0], imBL[1] + imOF[1]);
+    ctx.stroke();
+    ctx.closePath();
+  }
+
+  function render() {
+    var cCross = [186, 8, 16, 0.8];
+    var eCanvas = document.getElementById('canvas');
+
+    var sParent = window.getComputedStyle(eCanvas.parentElement);
+    eCanvas.width = parseInt(sParent.width, 10);
+
+    eCanvas.height = eCanvas.width + 50;
+    if (window.innerWidth < (eCanvas.width + 50)) {
+      eCanvas.height = window.innerHeight;
+    }
+
+    var ctx = eCanvas.getContext('2d');
+    ctx.clearRect(0, 0, cCross, eCanvas.width, eCanvas.height);
+
+    ctx.beginPath();
+    ctx.rect(0, 0, eCanvas.width, eCanvas.height);
+    ctx.fillStyle = "rgb(240, 240, 240)";
+    ctx.fill();
+    ctx.closePath();
+
+    var imStart = new Map([[eCanvas.width, 0]]);
+
+    var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
+    while (getNearestYValue(imLine, 0)[1] < (eCanvas.height - 100)) {
+      imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
+    }
+  }
+
+  // Main entry point.
+  // Tom Sachs studio numbers: (27 / 61) ~ 40% line failure.
+  (function() {
+    render();
+    window.onresize = render;
+  })();
+
+</script>
   </body>
 </html>
