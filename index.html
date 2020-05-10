@@ -50,6 +50,24 @@
         return Math.floor((Math.random() * iEnd) + iStart) | 0;
       }
 
+      function lin(iStart, iEnd, fStart, fEnd, fPos) {
+        // If we are past the ends of our input range, return the end points.
+        if (fPos > fEnd) {
+          return iEnd;
+        }
+
+        if (fPos < fStart) {
+          return iStart;
+        }
+
+        // Solve y = mx + c using two points: [fStart, iStart] and [fEnd, iEnd]
+        var fM = ((iEnd - iStart) / (fEnd - fStart));
+        var fC = (-fM * fStart) + iStart;
+
+        // Solve for for fPos with a freshly created equation.
+        return (fPos * fM) + fC;
+      }
+
       function chance(iProbability) {
         if (rand(0, 100) >= (100 - iProbability)) {
           return true;
@@ -186,7 +204,7 @@
 
           // If we have gotten to close to the line above and it is not yet
           // time to cross above. Move away.
-          if((fX <  fXcross) && (iYdelta <= (iYgap - 5))) {
+          if((fX < fXcross) && (iYdeltaScale < 0.5)) {
             iYpos = iYprev + rand(3, 8);
             console.log("D");
 
@@ -200,17 +218,23 @@
           // Keep wibble Wobbling away.
           } else {
 
-            // lower -> get more negative as iYdeltaScale increases.
-            // upper -> get less positive as iYdeltaScale increases.
-            var iLower = -4 * iYdeltaScale;
-            var iUpper = 14 / iYdeltaScale;
+            var iLower = lin(1, -4, 0.5, 1.0, iYdeltaScale);
+            // ILower = iYdeltaScale = 0.5, iLower = +1
+            //          iYdeltaScale = 1.0, iLower = -4;
+            //        -> get more negative as iYdeltaScale increases.
+
+            var iUpper = 14 / iYdeltaScale; // TODO: Work out linear envelope for this.
+            // IUpper =
+            //
+            //        -> get less positive as iYdeltaScale increases.
+
 
             // lower --> get more negative as iXpos gets closer to fXcross.
             // upper --> get less positive as iXpos gets closer to FXcross.
-            if (fXcross < 1.0) {
-              iLower = iLower - (4 * (fX / fXcross));
-              iUpper = iUpper - (14 * (fX / fXcross));
-            }
+            // if (fXcross < 1.0) {
+            //   iLower = iLower - (4 * (fX / fXcross)); // Go for 0.8 to 1.0 for fX/fXcross
+            //   iUpper = iUpper - (14 * (fX / fXcross));
+            // }
 
             iYpos = iYpos + rand(iLower, iUpper);
             console.log("N");
@@ -238,7 +262,7 @@
 
           // We touched the line above. Our turn is over -- we are not checking the
           // line above correctly.
-          if (iYpos - test[1] <= 3) {
+          if (iYpos - test[1] <= 2) {
             // TODO: Sometimes we miss the line above, and don't cross properlly.
             console.log("POS[" + iXpos + "," + iYpos + "] ABOVE[" + test[0] + "," + test[1] + " DIST:" + fDist );
             break;
@@ -347,7 +371,7 @@
         var imStart = new Map([[eCanvas.width, 0]]);
 
         var imLine = drawLine(ctx, imStart, eCanvas.width, cCross);
-        for (var iIdx = 0; iIdx < 5; iIdx = iIdx + 1) {
+        for (var iIdx = 0; iIdx < 25; iIdx = iIdx + 1) {
           imLine = drawLine(ctx, imLine, eCanvas.width, cCross);
         }
 
