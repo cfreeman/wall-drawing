@@ -332,7 +332,17 @@
     });
   }
 
+  var iLastWidth = 0;
+
   function render() {
+
+    if (window.innerWidth == iLastWidth) {
+      // Width is the same as last time. No need to render.
+      return;
+    }
+
+    iLastWidth = window.innerWidth;
+
     var cCross = [186, 8, 16, 0.8];
     var eCanvas = document.getElementById('canvas');
 
